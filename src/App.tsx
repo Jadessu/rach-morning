@@ -1,20 +1,22 @@
-import  { useState } from "react";
+import { useState } from "react";
 import Brand from "./components/Brand";
 import Tabs from "./components/Tabs";
 import Reveal from "./components/Reveal";
 import Settings from "./components/Settings";
 import Card from "./components/Card";
 
+type TabMode = "motivation" | "joke" | "druski";
+
 export default function App() {
-  const [tab, setTab] = useState<"motivation" | "joke" | "druski">("motivation"); // ⬅️ add "druski"
-  const [name, setName] = useState<string | undefined>(undefined);
-  const [setCelebrate] = useState(false);
+  const [tab, setTab] = useState<TabMode>("motivation");
+  const [name] = useState<string | undefined>(undefined);
+  const [, setCelebrate] = useState(false); // ✅ [value, setter]
 
   return (
     <div className="max-w-screen-sm mx-auto px-4 py-5 sm:py-8">
       {/* Header */}
       <div className="mb-4">
-        <Brand name={name} />
+        <Brand />
       </div>
 
       {/* Hero */}
@@ -33,7 +35,9 @@ export default function App() {
           {/* <a
             className="btn btn-primary"
             href="javascript:void(0)"
-            onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
+            onClick={() =>
+              window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })
+            }
           >
             Personalize
           </a> */}
@@ -48,15 +52,13 @@ export default function App() {
       {/* Reveal panel */}
       <div className="space-y-3">
         <Reveal mode={tab} name={name} onBothCleared={() => setCelebrate(true)} />
-        
+        {/* You can pass `celebrate` down if a child needs it */}
       </div>
 
       {/* Extras */}
       <div className="mt-6 grid gap-3">
         <Card>
-          <div className="text-sm text-muted">
-            Tip: Add to Home Screen for one-tap access.
-          </div>
+          <div className="text-sm text-muted">Tip: Add to Home Screen for one-tap access.</div>
         </Card>
 
         <div id="settings">
