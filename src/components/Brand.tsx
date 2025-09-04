@@ -1,5 +1,5 @@
 
-export default function Brand({ name }: { name?: string }) {
+export default function Brand() {
   return (
     <div className='flex items-center gap-3'>
       <div className='size-10 rounded-xl grid place-items-center bg-gradient-to-br from-accent to-accent-2'>

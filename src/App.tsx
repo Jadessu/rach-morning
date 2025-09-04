@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import  { useState } from "react";
 import Brand from "./components/Brand";
 import Tabs from "./components/Tabs";
 import Reveal from "./components/Reveal";
@@ -8,7 +8,7 @@ import Card from "./components/Card";
 export default function App() {
   const [tab, setTab] = useState<"motivation" | "joke" | "druski">("motivation"); // ⬅️ add "druski"
   const [name, setName] = useState<string | undefined>(undefined);
-  const [celebrate, setCelebrate] = useState(false);
+  const [setCelebrate] = useState(false);
 
   return (
     <div className="max-w-screen-sm mx-auto px-4 py-5 sm:py-8">
@@ -60,7 +60,7 @@ export default function App() {
         </Card>
 
         <div id="settings">
-          <Settings onChange={setName} />
+          <Settings />
         </div>
       </div>
 

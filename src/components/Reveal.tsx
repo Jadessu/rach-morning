@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Card from "./Card";
 import confetti from "canvas-confetti";
 import { MOTIVATIONS } from "../data/motivation";
