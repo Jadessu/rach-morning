@@ -137,12 +137,28 @@ export default function Reveal({
     }
 
     if (parsedNum == null || parsedNum < 0 || parsedNum >= max) {
-      // Clear bad/legacy indices so we don't crash
-      setChosen(null);
+      // INVALID INDEX → unmark revealed for today so user can reveal again
       localStorage.removeItem(perDayKey);
-    } else {
-      setChosen(parsedNum);
+      setChosen(null);
+      setState(prev => {
+        const prevDay = prev.revealed[key] ?? {};
+        const next: SavedStateV2 = {
+          ...prev,
+          revealed: {
+            ...prev.revealed,
+            [key]: {
+              ...prevDay,
+              [mode]: false, // allow reveal again
+            },
+          },
+        };
+        saveState(next);
+        return next;
+      });
+      return;
     }
+
+    setChosen(parsedNum);
   }, [already, key, mode]);
 
   const content = useMemo(() => {
@@ -310,7 +326,7 @@ export default function Reveal({
         <button
           className="btn btn-primary w-full"
           onClick={reveal}
-          disabled={already}
+          disabled={state.revealed[key]?.[mode] ?? false}
         >
           {already
             ? "Revealed"

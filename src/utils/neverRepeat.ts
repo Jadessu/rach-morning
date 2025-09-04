@@ -1,24 +1,43 @@
 import { hashString } from "./hash";
 
 const USED_KEY = "daily-used-v1";
-export type Category = "motivation" | "joke" | "druski"; // ⬅️ add druski
+export type Category = "motivation" | "joke" | "druski";
 type UsedStore = Record<Category, number[]>;
 
 function loadUsed(): UsedStore {
   try {
     const raw = localStorage.getItem(USED_KEY);
-    if (raw) return JSON.parse(raw);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray(parsed.motivation) &&
+      Array.isArray(parsed.joke) &&
+      Array.isArray(parsed.druski)
+    ) {
+      return parsed as UsedStore;
+    }
   } catch {}
-  return { motivation: [], joke: [], druski: [] }; // ⬅️ include druski
+  return { motivation: [], joke: [], druski: [] };
 }
 
 function saveUsed(s: UsedStore) {
   localStorage.setItem(USED_KEY, JSON.stringify(s));
 }
 
+function gcd(a: number, b: number): number {
+  while (b) [a, b] = [b, a % b];
+  return Math.abs(a);
+}
+
+function sanitizeUsed(arr: number[], n: number) {
+  return arr.filter((i) => Number.isInteger(i) && i >= 0 && i < n);
+}
+
 export function isExhausted(listLength: number, category: Category) {
-  const used = loadUsed()[category];
-  return used.length >= listLength;
+  if (listLength <= 0) return true;
+  const clean = sanitizeUsed(loadUsed()[category] ?? [], listLength);
+  return clean.length >= listLength;
 }
 
 /** Return an unused index; -1 if exhausted. */
@@ -27,21 +46,35 @@ export function pickUniqueIndex(
   category: Category,
   seedString: string
 ): number {
+  if (listLength <= 0) return -1;
+
   const store = loadUsed();
-  const used = new Set(store[category]);
-  if (used.size >= listLength) return -1;
+  // clean & persist if needed
+  const clean = sanitizeUsed(store[category] ?? [], listLength);
+  if (clean.length !== (store[category]?.length ?? 0)) {
+    store[category] = clean;
+    saveUsed(store);
+  }
+  if (clean.length >= listLength) return -1;
 
-  const seed = hashString(seedString);
-  let start = seed % listLength;
-  const step = 1 + (seed % Math.max(1, Math.min(7, Math.floor(listLength / 3))));
+  const used = new Set(clean);
 
-  for (let i = 0; i < listLength; i++) {
-    const idx = (start + i * step) % listLength;
+  const seed = Math.abs(hashString(seedString)) >>> 0;
+  const start = listLength === 1 ? 0 : seed % listLength;
+
+  // choose a stride that’s coprime to listLength so we visit every slot
+  let step = listLength === 1 ? 1 : 1 + (seed % (listLength - 1));
+  while (gcd(step, listLength) !== 1) {
+    step = (step % (listLength - 1)) + 1; // cycle 1..(n-1)
+  }
+
+  for (let k = 0; k < listLength; k++) {
+    const idx = (start + k * step) % listLength;
     if (!used.has(idx)) {
-      store[category].push(idx);
+      store[category] = [...clean, idx];
       saveUsed(store);
       return idx;
     }
   }
-  return -1;
+  return -1; // should be unreachable unless list changed mid-loop
 }
