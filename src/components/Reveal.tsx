@@ -1,3 +1,4 @@
+// src/components/Reveal.tsx
 import { useMemo, useState, useEffect } from "react";
 import Card from "./Card";
 import confetti from "canvas-confetti";
@@ -9,9 +10,12 @@ import { pickUniqueIndex, isExhausted, type Category } from "../utils/neverRepea
 
 type Mode = "motivation" | "joke" | "druski";
 
-const STORAGE_KEY = "daily-start-state-v1";
+/** Bump this if you change the SavedState shape in the future */
+const STORAGE_KEY = "daily-start-state-v2";
+const LEGACY_KEY_V1 = "daily-start-state-v1";
 
-type SavedState = {
+type SavedStateV2 = {
+  version: 2;
   name?: string;
   theme?: "violetPink" | "tealCyan";
   revealed: Record<
@@ -20,7 +24,7 @@ type SavedState = {
   >;
 };
 
-// Safer watch->embed helper (returns "" if invalid)
+// ---------- helpers ----------
 function toEmbed(url?: string) {
   if (!url) return "";
   try {
@@ -35,18 +39,63 @@ function toEmbed(url?: string) {
   return "";
 }
 
-function loadState(): SavedState {
+/** Migrate any older saved data to the current v2 shape */
+function migrateToV2(raw: string | null): SavedStateV2 {
+  if (!raw) return { version: 2, revealed: {} };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+
+    // Already v2?
+    if (parsed?.version === 2) {
+      // ensure minimal shape
+      return {
+        version: 2,
+        name: parsed.name,
+        theme:
+          parsed.theme === "tealCyan" || parsed.theme === "violetPink"
+            ? parsed.theme
+            : "violetPink",
+        revealed: parsed.revealed ?? {},
+      };
+    }
+
+    // v1 -> v2 (v1 had no explicit version, same fields otherwise)
+    if (parsed && typeof parsed === "object") {
+      const theme =
+        parsed.theme === "tealCyan" || parsed.theme === "violetPink"
+          ? parsed.theme
+          : "violetPink";
+      const revealed =
+        parsed.revealed && typeof parsed.revealed === "object"
+          ? parsed.revealed
+          : {};
+      return { version: 2, name: parsed.name, theme, revealed };
+    }
   } catch {}
-  return { revealed: {} };
+  return { version: 2, revealed: {} };
 }
 
-function saveState(s: SavedState) {
+function loadState(): SavedStateV2 {
+  try {
+    // Prefer new key; if missing, try legacy key
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ??
+      localStorage.getItem(LEGACY_KEY_V1);
+
+    const v2 = migrateToV2(raw);
+    // Persist back to new key so future loads are consistent
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(v2));
+    return v2;
+  } catch {
+    return { version: 2, revealed: {} };
+  }
+}
+
+function saveState(s: SavedStateV2) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
 }
 
+// ---------- component ----------
 export default function Reveal({
   mode,
   name,
@@ -56,7 +105,7 @@ export default function Reveal({
   name?: string;
   onBothCleared?: () => void;
 }) {
-  const [state, setState] = useState<SavedState>(() => loadState());
+  const [state, setState] = useState<SavedStateV2>(() => loadState());
   const key = todayKey();
   const already = state.revealed[key]?.[mode] ?? false;
 
@@ -67,7 +116,8 @@ export default function Reveal({
   useEffect(() => {
     if (!already) return;
 
-    const stored = localStorage.getItem(`${mode}-today-${key}`);
+    const perDayKey = `${mode}-today-${key}`;
+    const stored = localStorage.getItem(perDayKey);
     if (!stored) return;
 
     const max =
@@ -78,7 +128,6 @@ export default function Reveal({
         : DRUSKI_VIDEOS.length;
 
     let parsedNum: number | null = null;
-
     try {
       const parsed = JSON.parse(stored);
       if (typeof parsed === "number") parsedNum = parsed;
@@ -90,7 +139,7 @@ export default function Reveal({
     if (parsedNum == null || parsedNum < 0 || parsedNum >= max) {
       // Clear bad/legacy indices so we don't crash
       setChosen(null);
-      localStorage.removeItem(`${mode}-today-${key}`);
+      localStorage.removeItem(perDayKey);
     } else {
       setChosen(parsedNum);
     }
@@ -151,7 +200,7 @@ export default function Reveal({
         nextChosen = idx >= 0 ? idx : null;
       }
     } else {
-      // druski: one clip per day
+      // druski
       if (!isExhausted(DRUSKI_VIDEOS.length, "druski" as Category)) {
         const idx = pickUniqueIndex(
           DRUSKI_VIDEOS.length,
@@ -164,15 +213,17 @@ export default function Reveal({
 
     setChosen(nextChosen);
 
+    const perDayKey = `${mode}-today-${key}`;
     if (nextChosen == null) {
-      localStorage.removeItem(`${mode}-today-${key}`);
+      localStorage.removeItem(perDayKey);
     } else {
-      localStorage.setItem(`${mode}-today-${key}`, JSON.stringify(nextChosen));
+      localStorage.setItem(perDayKey, JSON.stringify(nextChosen));
     }
 
     // Mark revealed for the day
-    const next: SavedState = {
+    const next: SavedStateV2 = {
       ...state,
+      version: 2,
       revealed: {
         ...state.revealed,
         [key]: {
@@ -209,7 +260,8 @@ export default function Reveal({
   const hours = Math.floor(timeLeftMs / 3_600_000);
   const mins = Math.floor((timeLeftMs % 3_600_000) / 60_000);
 
-  const druskiEmbed = (content as any).druski ? toEmbed((content as any).druski) : "";
+  const druskiEmbed =
+    (content as any).druski ? toEmbed((content as any).druski) : "";
 
   return (
     <Card className="space-y-3">
