@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+
+
+/* Subtle layered glow background */
+body {
+  background:
+    radial-gradient(1200px 800px at 10% 0%, rgba(143,123,255,.14), transparent 50%),
+    radial-gradient(900px 600px at 90% 20%, rgba(255,122,182,.12), transparent 50%),
+    #0f1220;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: white;
+}
+
+.glass {
+  @apply bg-white/5 border border-white/10 rounded-2xl  backdrop-blur-md;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium transition
+         border border-white/10 bg-white/5 hover:bg-white/10 active:scale-[.98];
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #8f7bff, #ff7ab6);
+  @apply border-0 text-white;
+}
